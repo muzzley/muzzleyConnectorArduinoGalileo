@@ -11,31 +11,51 @@ Install the library to "libraries" folder in your Sketchbook folder.
 
 ### Usage Example
 ``` galileo
-#include <Ethernet.h>
-#include <Base64.h>
+#include <JsonObjectBase.h>
+#include <Muzzley.h>
 #include <WSClient.h>
+#include <Callback.h>
+#include <JsonHashTable.h>
+#include <JsonParser.h>
+#include <RpcManager.h>
+#include <JsonArray.h>
+#include <Ethernet.h>
+
 
 byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
-WSClient client;
+
+
+Muzzley muzzley;
 
 void setup() {
   Serial.begin(9600);
   Ethernet.begin(mac);
-  delay(1000);
-  client.connect("echo.websocket.org", 80, "/");
-  Serial.println("Handshaked");
-  client.setMessageHandler(onMessage);
-  client.send("Hello world");
+  delay(2000);
+  muzzley.setActivityReadyHandler(activityCreated);
+  muzzley.setParticipantJoinHandler(participantJoined);
+  
+  muzzley.connectApp("muzzlionaire");
 }
 
 void loop() {
-  delay(50);
-  client.listen();
+  muzzley.nextTick();
 }
 
-void onMessage(WSClient client, String data) {
-  Serial.println("--- Got message ----");
-  Serial.println(data);
+
+void activityCreated(char* activityId, char* qrCodeUrl, char* deviceId) {
+  Serial.println("--------- Activity Created -------");
+  Serial.println(activityId);
+  Serial.println(qrCodeUrl);
+  Serial.println(deviceId);
+}
+
+void participantJoined(Participant p){
+  Serial.println("------ Participant joined -------");
+  Serial.println(p.id);
+  Serial.println(p.profileId);
+  Serial.println(p.name);
+  Serial.println(p.photoUrl);
+  Serial.println(p.deviceId);
 }
 ```
 
