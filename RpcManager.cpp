@@ -83,6 +83,8 @@ void RpcManager::addRpc(Rpc rpc){
 
 // Public
 RpcManager::RpcManager(){
+  _rpcs_count = 0;
+  _cid = 1;
   _on_message = new Delegate<void, char*>(this, &RpcManager::handleResponse);
   _ws.addEventListener(_on_message);
 }

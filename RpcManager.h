@@ -19,8 +19,8 @@ class RpcManager{
     void removeRpc(int pos);
     Rpc getRpcByCid(char* cid);
     Rpc _rpcs[15];
-    int _rpcs_count = 0;
-    int _cid = 1;
+    int _rpcs_count;
+    int _cid;
     WSClient _ws;
     Delegate<void, char*> *_on_message;
     Delegate<void, char*> *_on_handshake;

@@ -33,6 +33,8 @@ void Muzzley::addParticipant(Participant p){
 
 Muzzley::Muzzley(){
  // _on_connect = new Delegate<void, char*>(this, &Muzzley::onConnect);
+  _participants_count = 0;
+  _static_activity = false;
   strcpy(_server, "geoplatform.muzzley.com");
   _rpcs.registerEvent("on_connect", new Delegate<void, char*>(this, &Muzzley::onConnect));
   _rpcs.registerEvent("on_handshake", new Delegate<void, char*>(this, &Muzzley::onHandshake));

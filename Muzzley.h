@@ -41,13 +41,13 @@ class Muzzley{
     void onParticipantJoin(char* msg);
     void onParticipantReady(char* msg);
     RpcManager _rpcs;
-    int _participants_count=0;
+    int _participants_count;
     Participant _participants[30];
     char _device_id[40]; 
     char _app_token[30];
     char _activity_id[20];
     char _server[40];
-    bool _static_activity = false;
+    bool _static_activity;
     ActivityReady _activity_ready;
     ParticipantJoined _participant_joined;
     
