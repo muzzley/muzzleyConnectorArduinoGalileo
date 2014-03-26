@@ -81,6 +81,7 @@ byte WSClient::getNextByte() {
 
 /**  Connects and handshakes with remote server */
 void WSClient::connect(const char host[], const int port, const char path[]){
+  _ready_status = CLOSED;
   if(_socket.connected()){
     disconnect();
   }

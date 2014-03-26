@@ -22,7 +22,7 @@ class WSClient{
     byte getNextByte();
     Delegate<void, char*> *_on_message_delegate;
     EthernetClient _socket;
-    Status _ready_status = CLOSED;
+    Status _ready_status;
     char* _packet;
     unsigned int _packetLength;
     byte _opCode;
