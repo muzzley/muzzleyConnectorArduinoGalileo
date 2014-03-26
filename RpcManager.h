@@ -7,7 +7,7 @@
 
 struct Rpc{
   char _correlation_id[11];
-  int _timer = 15;
+  int _timer;
   Delegate<void, char*> *_callback;
 };
 
