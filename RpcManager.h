@@ -7,7 +7,7 @@
 
 struct Rpc{
   char _correlation_id[11];
-  int _timer;
+  unsigned long _timer;
   Delegate<void, char*> *_callback;
 };
 
@@ -15,14 +15,16 @@ class RpcManager{
 
   private:
     void handleResponse(char* message);
+    void handleCloseEvent(char* msg);
     void addRpc(Rpc rpc);
     void removeRpc(int pos);
     Rpc getRpcByCid(char* cid);
-    Rpc _rpcs[15];
+    Rpc _rpcs[10];
     int _rpcs_count;
     int _cid;
     WSClient _ws;
     Delegate<void, char*> *_on_message;
+    Delegate<void, char*> *_on_close;
     Delegate<void, char*> *_on_handshake;
     Delegate<void, char*> *_on_login_app;
     Delegate<void, char*> *_on_create_activity;
@@ -32,7 +34,7 @@ class RpcManager{
     Delegate<void, char*> *_on_participant_quit;
     Delegate<void, char*> *_on_signaling_message;
     Delegate<void, char*> *_on_action;
-    Delegate<void, char*> *_on_change_widget;
+    Delegate<void, char*> *_on_widget_ready;
     Delegate<void, char*> *_on_disconnect;
     Delegate<void, char*> *_on_connect;
 
@@ -40,6 +42,7 @@ class RpcManager{
 
     RpcManager();
     void next();
+    int getCurrentCid();
     void makeRequest(char* message, Delegate<void, char*> *d = NULL);
     void removeExpiredTimeouts();
     void registerEvent(char* type, Delegate<void, char*> *d);
@@ -48,6 +51,9 @@ class RpcManager{
     void handshake();
     void loginApp(char* token);
     void createActivity(bool static_activity, char* activity);
+    void changeWidget(int pid, char* widget, char* options);
+    void sendSignal(int pid, int msg_type, char* type, char* data);
+    void respondToSignal(char* cid, int pid, char* response);
 };
 
 

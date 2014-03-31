@@ -3,68 +3,72 @@
 #include "JsonHashTable.h"
 #include "JsonParser.h"
 
-
-// Private
-
 void RpcManager::handleResponse(char* message){
   if (strcmp(message, "h") == 0) return;
-  char msg[500];
+  char msg[strlen(message)];
   strcpy(msg, message);
   JsonParser<32> parser;
   JsonHashTable hashTable = parser.parseHashTable(message);
   JsonHashTable header = hashTable.getHashTable("h");
   char* type = header.getString("t");
   char* cid = header.getString("cid");
-Serial.println(cid);
-  if (strcmp(type, "2") == 0){
-    if(type == NULL || cid == NULL){
-      return;
-    }
-    for(int i = 0; i < _rpcs_count; ++i){
-      if( strcmp(_rpcs[i]._correlation_id,cid) == 0){
-        (*_rpcs[i]._callback)(msg);
-        removeRpc(i);
+  char* action = NULL;
+  JsonHashTable user_data;
+  char* user_action;
+  if(hashTable.containsKey("a")){
+    action = hashTable.getString("a");
+  }
+  switch(type[0]){
+    case '1':
+      user_data = hashTable.getHashTable("d");
+      user_action = user_data.getString("a");
+      if (strcmp(user_action, "ready") == 0){
+        (*_on_participant_ready)(msg);
+      }else{
+        (*_on_signaling_message)(msg);
       }
-    }  
-  }else{
-    if (strcmp(type, "3") == 0){
-      if (strcmp(hashTable.getString("a"), "participantJoined") == 0){
+    break;
+
+    case '2':
+      if(type == NULL || cid == NULL){
+        return;
+      }
+      for(int i = 0; i < _rpcs_count; ++i){
+        if( strcmp(_rpcs[i]._correlation_id,cid) == 0){
+          (*_rpcs[i]._callback)(msg);
+          removeRpc(i);
+          return;
+        } 
+      }
+      (*_on_signaling_message)(msg);
+    break;
+
+    case '3':
+      if (strcmp(action, "participantJoined") == 0){
         (*_on_participant_join)(msg);
- Serial.println(cid);
-        sprintf(msg, "{\"h\":{\"cid\":\"%d\",\"t\":4},\"s\":true}", cid);
-        Serial.println(msg);
+        sprintf(msg, "{\"h\":{\"cid\":\"%s\",\"t\":4},\"s\":true}", cid);
+        _ws.send(msg);
+      }else if(strcmp(action, "participantQuit") == 0){
+        (*_on_participant_quit)(msg);
+        sprintf(msg, "{\"h\":{\"t\":4,\"cid\": \"%s\"},\"s\":true}", cid);
         _ws.send(msg);
       }
-    }
-  }
+    break;
+
+    case '5':
+      if (strcmp(action, "signal") == 0){
+        (*_on_signaling_message)(msg);
+      }
+    break;
+
+    default:
+    break;
+  };
 }
 
-/** 
-  //Verify if the muzzData is a response
-  if (muzzData.h.t  === MESSAGE_TYPE_RESPONSE){
-    if (!muzzData || !muzzData.h || typeof muzzData.h.cid === 'undefined') {
-      // No Correlation Id defined, nothing to do here...
-      return;
-    }
-
-    var correlationId = muzzData.h.cid;
-
-    if (correlationId in requests) {
-      var entry = requests[correlationId];
-      clearTimeout(entry.timeout);
-      delete requests[correlationId];
-
-      //Check if the message is an error and is not a redirect (connectTo)
-      var isRedirect = muzzData.d && muzzData.d.connectTo;
-      if (muzzData.s === false && !isRedirect) {
-        var errMsg = muzzData.m || 'Unknown error';
-        return entry.callback(new Error(errMsg), muzzData);
-      }
-      return entry.callback(null, muzzData);
-    }
-  }else{
-    next(muzzData);
-  }*/
+void RpcManager::handleCloseEvent(char* msg){
+  if(_on_close != NULL)(*_on_close)(msg);
+}
 
 
 void RpcManager::removeRpc(int pos){
@@ -81,17 +85,18 @@ void RpcManager::addRpc(Rpc rpc){
   _rpcs_count++;
 }
 
-// Public
 RpcManager::RpcManager(){
   _rpcs_count = 0;
   _cid = 1;
   _on_message = new Delegate<void, char*>(this, &RpcManager::handleResponse);
-  _ws.addEventListener(_on_message);
+  _ws.addEventListener("on_message", _on_message);
 }
 
+int RpcManager::getCurrentCid(){
+  return _cid;
+}
 
 void RpcManager::registerEvent(char* type, Delegate<void, char*> *d){
-  
   if (strcmp(type, "on_connect") == 0) {
     _on_connect = d;
   }
@@ -110,33 +115,39 @@ void RpcManager::registerEvent(char* type, Delegate<void, char*> *d){
   if (strcmp(type, "on_participant_ready") == 0) {
     _on_participant_ready = d;
   }
-
+  if (strcmp(type, "on_widget_ready") == 0) {
+    _on_widget_ready = d;
+  }
+  if (strcmp(type, "on_signaling_message") == 0) {
+    _on_signaling_message = d;
+  }
+  if (strcmp(type, "on_participant_quit") == 0) {
+    _on_participant_quit = d;
+  }
+  if (strcmp(type, "on_close") == 0) {
+    _on_close = d;
+  }
 }
-
 
 void RpcManager::next(){
-  _ws.listen();
+  _ws.getNextPacket();
 }
 
-
 void RpcManager::handshake(){
-  Serial.print("Handshaking...");
-  char msg[126];
+  char msg[92];
   sprintf(msg, "{\"h\":{\"cid\":\"%d\",\"t\":1},\"a\":\"handshake\",\"d\":{\"protocolVersion\":\"1.2\",\"lib\":\"Galileo 1.0\"}}",_cid);
   makeRequest(msg, _on_handshake);
 }
 
 void RpcManager::loginApp(char *token){
-  Serial.print("LoginApp...");
-  char msg[126];
+  char msg[120];
   sprintf(msg, "{\"h\":{\"cid\":\"%d\",\"t\":1},\"a\":\"loginApp\",\"d\":{\"token\":\"%s\"}}", _cid, token);
   makeRequest(msg, _on_login_app);
 }
 
 
 void RpcManager::createActivity(bool static_activity, char *activity){
-  Serial.print("CreateActivity...");
-  char msg[126];
+  char msg[50];
   if(static_activity){
     sprintf(msg, "{\"h\":{\"cid\":\"%d\",\"t\":1},\"a\":\"create\",\"d\":{\"activityId\":\"%s\"}}", _cid, activity);
   }else{
@@ -146,6 +157,28 @@ void RpcManager::createActivity(bool static_activity, char *activity){
 }
 
 
+void RpcManager::changeWidget(int pid, char* widget, char* options){
+  char msg[300];
+  sprintf(msg, "{\"h\":{\"cid\":\"%d\",\"pid\":%d,\"t\":1},\"a\":\"signal\",\"d\":{\"a\":\"changeWidget\",\"d\":{\"widget\":\"%s\"", _cid, pid, widget);
+  if(options != NULL){
+    strcat(msg,",\"params\":");
+    strcat(msg, options);
+  }
+    strcat(msg,"}}}");
+  makeRequest(msg, _on_widget_ready);
+}
+
+void RpcManager::sendSignal(int pid, int msg_type, char* type, char* data){
+  char msg[400];
+  sprintf(msg, "{\"h\":{\"cid\":\"%d\",\"pid\":%d,\"t\":%d},\"a\":\"signal\",\"d\":{\"a\":\"%s\",\"d\":%s}}", _cid, pid, msg_type, type, data);
+  makeRequest(msg);
+}
+
+void RpcManager::respondToSignal(char* cid, int pid, char* response){
+  char msg[300];
+  sprintf(msg, "{\"h\":{\"cid\":\"%s\",\"pid\":%d,\"t\":2},%s}", cid, pid, response);
+  _ws.send(msg);
+}
 
 void RpcManager::makeRequest(char *msg, Delegate<void, char*> *d){
   
@@ -155,25 +188,30 @@ void RpcManager::makeRequest(char *msg, Delegate<void, char*> *d){
     Rpc rpc;
     strcpy(rpc._correlation_id, correlation_id);
     rpc._callback = d;
+    rpc._timer = millis();
     addRpc(rpc);
   }
 
   ++_cid;
-  Serial.println(msg);
   _ws.send(msg);
 }
 
 
 void RpcManager::connect(char* server){
-  Serial.print("Connecting...");
   _ws.connect(server, 80, "/ws");
   if(_ws.connected() == true){
-    Serial.print("[Done]\n");
-    (*_on_connect)("");
+    (*_on_connect)(NULL);
   }else{
-    Serial.print("[Failed]\n");
     delay(1000);
     connect(server);
   }
 }
 
+
+void RpcManager::removeExpiredTimeouts(){
+  for(int i = 0; i < _rpcs_count; ++i){
+    if(millis() - _rpcs[i]._timer >= 15000){
+      removeRpc(i);
+    }
+  }
+}
