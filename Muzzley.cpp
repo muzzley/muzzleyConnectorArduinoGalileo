@@ -173,7 +173,9 @@ void Muzzley::onCreateActivity(char* message){
     char* activityId = key_d.getString("activityId");
     char* qrCodeUrl = key_d.getString("qrCodeUrl");
     char* deviceId = key_d.getString("deviceId");
-    (*_activity_ready)(activityId, qrCodeUrl, deviceId);
+    if(_activity_ready != NULL){
+      (*_activity_ready)(activityId, qrCodeUrl, deviceId);
+    }
   }else{
     JsonHashTable key_d = hashTable.getHashTable("d");
     if(key_d.success() == true){
@@ -213,7 +215,9 @@ void Muzzley::onParticipantReady(char* message){
   JsonHashTable headers = hashTable.getHashTable("h");
   int pid = (int)headers.getLong("pid");
   Participant p = getParticipantById(pid);
-  (*_participant_joined)(p);
+  if(_participant_join != NULL){
+    (*_participant_joined)(p);
+  }
 }
 
 void Muzzley::onWidgetReady(char* message){
@@ -226,7 +230,9 @@ void Muzzley::onWidgetReady(char* message){
   if(strcmp(success, "true") == 0){
     JsonHashTable headers = hashTable.getHashTable("h");
     int pid = (int)headers.getLong("pid");
-    (*_widget_ready)(pid);
+    if(_widget_ready != NULL){
+      (*_widget_ready)(pid);
+    }
   }
 }
 
@@ -245,7 +251,9 @@ void Muzzley::onParticipantQuit(char* msg){
       removeParticipantById(i);
     }
   }
-  (*_on_participant_quit)(pid);
+  if(_on_participant_quit != NULL){
+    (*_on_participant_quit)(pid);
+  }
 }
 
 
@@ -283,7 +291,9 @@ void Muzzley::onSignalingMessage(char* msg){
   }else if(request_type == 2){
     for(int i = 0; i < _waiting_cbs; ++i){
       if( strcmp(_stored_cbs[i].m_cid, cid) == 0){
-        (*_stored_cbs[i].cb)(hashTable.getBool("s"), key_d);
+        if(_stored_cbs[i].cb != NULL){
+          (*_stored_cbs[i].cb)(hashTable.getBool("s"), key_d);
+        }
         for(int j = i; j < _waiting_cbs; j++){
           _stored_cbs[j] = _stored_cbs[j+1];
           _waiting_cbs--;
