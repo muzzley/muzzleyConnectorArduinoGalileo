@@ -215,7 +215,7 @@ void Muzzley::onParticipantReady(char* message){
   JsonHashTable headers = hashTable.getHashTable("h");
   int pid = (int)headers.getLong("pid");
   Participant p = getParticipantById(pid);
-  if(_participant_join != NULL){
+  if(_participant_joined != NULL){
     (*_participant_joined)(p);
   }
 }
