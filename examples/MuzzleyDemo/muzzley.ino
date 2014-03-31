@@ -30,7 +30,7 @@ void participantJoined(Participant p){
   Serial.println(p.name);
   Serial.println(p.photoUrl);
   Serial.println(p.deviceId);
-  muzzley.changeWidget(p.id, "webview", "{\"uuid\":\"01921ba5-17f7-4652-ab00-b3a815017b01\"}");
+  muzzley.changeWidget(p.id, "webview", "{\"uuid\":\"123456-17f7-4652-ab00-b3a815017b01\"}");
   //muzzley.changeWidget(p.id, "gamepad");
 }
 
@@ -84,7 +84,6 @@ char * onSignalingMessage(int participant_id, char* type, JsonHashTable message)
     //return NULL;
   }
   return NULL;
-  //(*callback)("my_json_message");
 }
 
 void onParticipantQuit(int pid){
@@ -106,7 +105,7 @@ void setup() {
   muzzley.setParticipantQuitHandler(onParticipantQuit);
   muzzley.setOnCloseHandler(onClose);
   
-  muzzley.connectApp("muzzlionaire");
+  muzzley.connectApp("my_token");
 }
 
 
