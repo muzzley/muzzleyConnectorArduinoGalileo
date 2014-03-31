@@ -1,21 +1,15 @@
-#include <JsonObjectBase.h>
 #include <Muzzley.h>
-#include <WSClient.h>
-#include <Callback.h>
+#include <JsonObjectBase.h>
 #include <JsonHashTable.h>
 #include <JsonParser.h>
-#include <RpcManager.h>
 #include <JsonArray.h>
-
-
-
 #include <Ethernet.h>
 
 
 Muzzley muzzley;
 byte mac[] = { 0xDE, 0xAD, 0xBE, 0xEF, 0xFE, 0xED };
 
-
+/** When an activity is ready */
 void activityCreated(char* activityId, char* qrCodeUrl, char* deviceId) {
   Serial.println("--------- Activity Created -------");
   Serial.println(activityId);
@@ -23,6 +17,7 @@ void activityCreated(char* activityId, char* qrCodeUrl, char* deviceId) {
   Serial.println(deviceId);
 }
 
+/** When a participant joins the activity */
 void participantJoined(Participant p){
   Serial.println("------ Participant joined -------");
   Serial.println(p.id);
@@ -35,54 +30,51 @@ void participantJoined(Participant p){
 }
 
 
-
-void handleMySignalResponse(bool success, JsonHashTable msg){
-  Serial.println("Received callback from webview");
-  Serial.println(msg.getString("key"));
-}
-
+/** When a participant widget has changed */
 void widgetChanged(int participant_id){
   Serial.println("Widget has changed");
   Serial.println(participant_id);
 
 }
 
+/** My custom signal callback */
+void handleMySignalResponse(bool success, JsonHashTable msg){
+  Serial.println("Received callback from webview");
+  Serial.println(msg.getString("key"));
+}
 
+
+/** When a signal arrives */
 char * onSignalingMessage(int participant_id, char* type, JsonHashTable message){
   Serial.println(participant_id);
   Serial.println(type);
   
-  if(strcmp(type, "gogo")==0){
+  if(strcmp(type, "galileo_callsback")==0){
     Serial.println("Received message from webview");
     Serial.println("Responding to webview");
     return("\"s\":true, \"d\":{\"test\":\"Galileo says hi!\"}"); 
   }
   
-  if(strcmp(type, "go")==0){
+  if(strcmp(type, "my_phone_message")==0){
     Serial.println("Received message from webview");
     Serial.println(message.getString("key"));
     return NULL; 
   }
   
-  if(strcmp(type, "triggerme")==0){
+  if(strcmp(type, "mesage_to_send_signal")==0){
     Serial.println("Received message from webview");
     Serial.println("Request to send something");
-    muzzley.sendSignal(participant_id, "testme", "{\"key\":\"la vai chourico\"}", handleMySignalResponse);
+    muzzley.sendSignal(participant_id, "testme", "{\"key\":\"Test me\"}", handleMySignalResponse);
     return NULL; 
   }
   
   
   if(strcmp(type, "action")==0){
-    //widget data 
     Serial.println("WIDGET DATA");
     char* wvar = message.getString("w");
     Serial.println(wvar);
-  }else{
-    //custom signaling data 
-    //Serial.println("CUSTOM SIGNAL MESSAGE");
-    //return "{s:true, m: , d:{}}";
-    //return NULL;
   }
+
   return NULL;
 }
 
@@ -98,6 +90,8 @@ void setup() {
   Serial.begin(9600);
   Ethernet.begin(mac);
   delay(2000);
+  
+  //Declare your Muzzley event handlers
   muzzley.setActivityReadyHandler(activityCreated);
   muzzley.setParticipantJoinHandler(participantJoined);
   muzzley.setParticipantWidgetChanged(widgetChanged);
@@ -105,12 +99,10 @@ void setup() {
   muzzley.setParticipantQuitHandler(onParticipantQuit);
   muzzley.setOnCloseHandler(onClose);
   
-  muzzley.connectApp("my_token");
+  muzzley.connectApp("my_app_token");
 }
 
 
 void loop() {
   muzzley.nextTick();
 }
-
-
