@@ -147,8 +147,8 @@ void RpcManager::loginApp(char *token){
 
 
 void RpcManager::createActivity(bool static_activity, char *activity){
-  char msg[50];
-  if(static_activity){
+  char msg[100];
+  if(static_activity != NULL){
     sprintf(msg, "{\"h\":{\"cid\":\"%d\",\"t\":1},\"a\":\"create\",\"d\":{\"activityId\":\"%s\"}}", _cid, activity);
   }else{
     sprintf(msg, "{\"h\":{\"cid\":\"%d\",\"t\":1},\"a\":\"create\"}", _cid);
