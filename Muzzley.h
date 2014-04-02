@@ -28,7 +28,7 @@ class Muzzley{
     void disconnect();
     bool connected();
     void createActivity();
-    void changeWidget(int participant_id, char* widget, char* options);
+    void changeWidget(int participant_id, char* widget, char* options = NULL);
     void sendSignal(int participant_id, char* type, char* data, SignalCallback callback);
     void nextTick();
     typedef void (*ActivityReady)(char* activityId, char* qrCodeUrl, char* deviceId);
