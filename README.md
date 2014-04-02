@@ -1,9 +1,11 @@
 muzzleyConnectorArduinoGalileo
 ==============================
 
+Version: 0.1.0
+
 A library to connect [Intel® Galileo Arduino](http://arduino.cc/en/ArduinoCertified/IntelGalileo) boards to the cloud through Muzzley.
 
-For a more detailed documentation, check [Muzzley documentation](http://www.muzzley.com/documentation).
+For a more detailed documentation, check the official [Muzzley documentation](http://www.muzzley.com/documentation).
 
 
 ## How to get it
