@@ -7,6 +7,7 @@ A library to connect [Intel® Galileo Arduino](http://arduino.cc/en/ArduinoCerti
 
 For a more detailed documentation, check the official [Muzzley documentation](http://www.muzzley.com/documentation).
 
+![MuzzleyWorld](http://www.muzzley.com/imgs/devices.svg)
 
 ## How to get it
 
