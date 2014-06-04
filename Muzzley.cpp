@@ -12,6 +12,8 @@
 void Muzzley::nextTick(){
   _rpcs.next();
   _rpcs.removeExpiredTimeouts();
+  //detect idle connection and try reconnect
+  //remove expired cbs with cb handle err
 }
 
 void Muzzley::removeParticipantById(int pos){
@@ -49,8 +51,8 @@ Muzzley::Muzzley(){
   _rpcs.registerEvent("on_connect", new Delegate<void, char*>(this, &Muzzley::onConnect));
   _rpcs.registerEvent("on_close", new Delegate<void, char*>(this, &Muzzley::onClose));
   _rpcs.registerEvent("on_handshake", new Delegate<void, char*>(this, &Muzzley::onHandshake));
-  _rpcs.registerEvent("on_login_app", new Delegate<void, char*>(this, &Muzzley::onLoginApp));
   _rpcs.registerEvent("on_create_activity", new Delegate<void, char*>(this, &Muzzley::onCreateActivity));
+  _rpcs.registerEvent("on_activity_joined", new Delegate<void, char*>(this, &Muzzley::onActivityJoined));
   _rpcs.registerEvent("on_participant_join", new Delegate<void, char*>(this, &Muzzley::onParticipantJoin));
   _rpcs.registerEvent("on_participant_ready", new Delegate<void, char*>(this, &Muzzley::onParticipantReady));
   _rpcs.registerEvent("on_widget_ready", new Delegate<void, char*>(this, &Muzzley::onWidgetReady));
@@ -76,7 +78,10 @@ void Muzzley::setParticipantWidgetChanged(WidgetReady widget_ready){
   _widget_ready = widget_ready;
 }
 
-void Muzzley::setSignalingMessagesHandler(OnSignalingMessage on_signaling_message){
+void Muzzley::setSignalingMessagesHandler(OnSignalingMessageWithParticipant on_signaling_message){
+  _on_signaling_message_p = on_signaling_message;
+}
+void Muzzley::setSignalingMessagesHandler(OnSignalingMessageWithoutParticipant on_signaling_message){
   _on_signaling_message = on_signaling_message;
 }
 
@@ -86,10 +91,21 @@ void Muzzley::setParticipantQuitHandler(ParticipantQuit participant_quit){
 
 void Muzzley::connectApp(char *app_token, char *activity_id){
   strcpy(_app_token, app_token);
+  _app = true;
   if(activity_id != NULL){
     strcpy(_activity_id, activity_id);
     _static_activity = true;
   }
+  _rpcs.registerEvent("on_login_app", new Delegate<void, char*>(this, &Muzzley::onLoginApp));
+  _rpcs.connect(_server);
+}
+
+
+void Muzzley::connectUser(char *user_token, char *activity_id){
+  strcpy(_app_token, user_token);
+  strcpy(_activity_id, activity_id);
+  _app = false;
+  _rpcs.registerEvent("on_login_user", new Delegate<void, char*>(this, &Muzzley::onLoginUser));
   _rpcs.connect(_server);
 }
 
@@ -109,6 +125,23 @@ void Muzzley::sendSignal(int participant_id, char* type, char* data, SignalCallb
     msg_type = 1;
   }
   _rpcs.sendSignal(participant_id, msg_type, type, data);
+}
+
+void Muzzley::sendSignal(char* type, char* data, SignalCallback callback){
+  int msg_type = 5;
+  if(callback != NULL){
+    UserCallback user_cb;
+    sprintf(user_cb.m_cid, "%d",_rpcs.getCurrentCid());
+    user_cb.cb = callback;
+    _stored_cbs[_waiting_cbs] = user_cb;
+    _waiting_cbs++;
+    msg_type = 1;
+  }
+  _rpcs.sendSignal(NULL, msg_type, type, data);
+}
+
+void Muzzley::sendWidgetData(char* data){
+  _rpcs.sendSignal(NULL, 5, "signal", data);
 }
 
 
@@ -136,7 +169,11 @@ void Muzzley::onHandshake(char* message){
   if(strcmp(success, "true") == 0){
     JsonHashTable data = hashTable.getHashTable("d");
     strcpy(_device_id, data.getString("deviceId"));
-    _rpcs.loginApp(_app_token);
+    if(_app == true){
+      _rpcs.loginApp(_app_token);
+    }else{
+      _rpcs.loginUser(_app_token);
+    }
   }
 }
 
@@ -156,6 +193,60 @@ void Muzzley::onLoginApp(char* message){
   }else{
   }
 
+}
+
+
+void Muzzley::onLoginUser(char* message){
+  JsonParser<32> parser;
+  JsonHashTable hashTable = parser.parseHashTable(message);
+  if(!hashTable.success()){
+    return;
+  }
+  if(!hashTable.containsKey("s")){
+    return;
+  }
+  char* success = hashTable.getString("s");
+  if(strcmp(success, "true") == 0){
+    _rpcs.joinActivity(_activity_id);
+  }else{
+  }
+
+}
+
+//Users only
+void Muzzley::onActivityJoined(char* message){
+  JsonParser<32> parser;
+  JsonHashTable hashTable = parser.parseHashTable(message);
+
+  if(!hashTable.success()){
+    return;
+  }
+  char* success = hashTable.getString("s");
+
+  if(strcmp(success, "true") == 0){
+    _rpcs.sendReadySignal();
+    JsonHashTable key_d = hashTable.getHashTable("d");
+    JsonHashTable joiner = key_d.getHashTable("participant");
+
+    Participant p;
+    p.id = (int)joiner.getLong("id");
+    strcpy(p.profileId, joiner.getString("profileId"));
+    strcpy(p.name, joiner.getString("name"));
+    strcpy(p.photoUrl, joiner.getString("photoUrl"));
+    strcpy(p.deviceId, joiner.getString("deviceId"));
+    (*_participant_joined)(p);
+  } else {
+    
+    JsonHashTable key_d = hashTable.getHashTable("d");
+    if(key_d.success() == true){
+      if(key_d.containsKey("connectTo")){
+        strcpy(_server,key_d.getString("connectTo"));
+        _rpcs.connect(_server);
+      }else{
+      }
+    }else{
+    }
+  }
 }
 
 
@@ -265,7 +356,10 @@ void Muzzley::onSignalingMessage(char* msg){
     return;
   }
   JsonHashTable headers = hashTable.getHashTable("h");
-  int pid = (int)headers.getLong("pid");
+  int pid;
+  if(headers.containsKey("pid")){
+    pid = (int)headers.getLong("pid");
+  }else{ pid = NULL; }
   int request_type = (int) headers.getLong("t");
   char* cid = headers.getString("cid");
   JsonHashTable key_d = hashTable.getHashTable("d");
@@ -283,7 +377,12 @@ void Muzzley::onSignalingMessage(char* msg){
     }else{
       message = key_d;
     }
-    char* response = (*_on_signaling_message)(pid, message_type, message);
+    char* response;
+    if(_app){
+      response = (*_on_signaling_message)(pid, message_type, message);
+    }else{
+      response = (*_on_signaling_message_p)(message_type, message);
+    }
     if(request_type == 1){
       _rpcs.respondToSignal(cid, pid, response);
       return;

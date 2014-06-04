@@ -20,6 +20,7 @@ class RpcManager{
     void removeRpc(int pos);
     Rpc getRpcByCid(char* cid);
     Rpc _rpcs[10];
+    char _server[45];
     int _rpcs_count;
     int _cid;
     WSClient _ws;
@@ -27,7 +28,9 @@ class RpcManager{
     Delegate<void, char*> *_on_close;
     Delegate<void, char*> *_on_handshake;
     Delegate<void, char*> *_on_login_app;
+    Delegate<void, char*> *_on_login_user;
     Delegate<void, char*> *_on_create_activity;
+    Delegate<void, char*> *_on_join_activity;
     Delegate<void, char*> *_on_connect_to;
     Delegate<void, char*> *_on_participant_join;
     Delegate<void, char*> *_on_participant_ready;
@@ -46,14 +49,17 @@ class RpcManager{
     void makeRequest(char* message, Delegate<void, char*> *d = NULL);
     void removeExpiredTimeouts();
     void registerEvent(char* type, Delegate<void, char*> *d);
-    void connect(char* server);
+    void connect(char* server = NULL);
     void disconnect();
     void handshake();
     void loginApp(char* token);
+    void loginUser(char* token);
     void createActivity(bool static_activity, char* activity);
+    void joinActivity(char* activity);
     void changeWidget(int pid, char* widget, char* options);
     void sendSignal(int pid, int msg_type, char* type, char* data);
     void respondToSignal(char* cid, int pid, char* response);
+    void sendReadySignal();
 };
 
 

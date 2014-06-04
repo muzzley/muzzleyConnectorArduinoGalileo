@@ -25,23 +25,28 @@ class Muzzley{
   public:
     Muzzley();
     void connectApp(char *app_token, char *activity_id = NULL);
+    void connectUser(char *user_token, char *activity_id);
     void disconnect();
     bool connected();
     void createActivity();
     void changeWidget(int participant_id, char* widget, char* options = NULL);
     void sendSignal(int participant_id, char* type, char* data, SignalCallback callback);
+    void sendSignal(char* type, char* data, SignalCallback callback);
+    void sendWidgetData(char* data);
     void nextTick();
     typedef void (*ActivityReady)(char* activityId, char* qrCodeUrl, char* deviceId);
     typedef void (*ParticipantJoined)(Participant p);
     typedef void (*ParticipantQuit)(int participant_id);
     typedef void (*WidgetReady)(int participant_id);
-    typedef char* (*OnSignalingMessage)(int participant_id, char* type, JsonHashTable message);
+    typedef char* (*OnSignalingMessageWithoutParticipant)(int participant_id, char* type, JsonHashTable message);
+    typedef char* (*OnSignalingMessageWithParticipant)(char* type, JsonHashTable message);
     typedef void (*OnClose)();
     void setActivityReadyHandler(ActivityReady activity_ready);
     void setParticipantJoinHandler(ParticipantJoined participant_joined);
     void setParticipantQuitHandler(ParticipantQuit participant_quit);
     void setParticipantWidgetChanged(WidgetReady widget_ready);
-    void setSignalingMessagesHandler (OnSignalingMessage on_signaling_message);
+    void setSignalingMessagesHandler (OnSignalingMessageWithoutParticipant on_signaling_message);
+    void setSignalingMessagesHandler (OnSignalingMessageWithParticipant on_signaling_message);
     void setOnCloseHandler(OnClose on_close);
     void onClose(char* msg);
 
@@ -53,8 +58,10 @@ class Muzzley{
     void onConnect(char* msg);
     void onHandshake(char* msg);
     void onLoginApp(char* msg);
+    void onLoginUser(char* msg);
     void onCreateActivity(char* msg);
     void onParticipantJoin(char* msg);
+    void onActivityJoined(char* msg);
     void onParticipantReady(char* msg);
     void onParticipantQuit(char* msg);
     void onWidgetReady(char* msg);
@@ -67,11 +74,13 @@ class Muzzley{
     char _activity_id[20];
     char _server[40];
     bool _static_activity;
+    bool _app;
     ActivityReady _activity_ready;
     ParticipantJoined _participant_joined;
     ParticipantQuit _on_participant_quit;
     WidgetReady _widget_ready;
-    OnSignalingMessage _on_signaling_message;
+    OnSignalingMessageWithParticipant _on_signaling_message_p;
+    OnSignalingMessageWithoutParticipant _on_signaling_message;
     OnClose _on_close;
     UserCallback _stored_cbs[10];
     int _waiting_cbs;
