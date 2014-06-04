@@ -40,7 +40,7 @@ void RpcManager::handleResponse(char* message){
           return;
         } 
       }
-      (*_on_signaling_message)(msg);
+      //(*_on_signaling_message)(msg);
     break;
 
     case '3':
@@ -106,8 +106,14 @@ void RpcManager::registerEvent(char* type, Delegate<void, char*> *d){
   if (strcmp(type, "on_login_app") == 0) {
     _on_login_app = d;
   }
+  if (strcmp(type, "on_login_user") == 0) {
+    _on_login_user = d;
+  }
   if (strcmp(type, "on_create_activity") == 0) {
     _on_create_activity = d;
+  }
+  if (strcmp(type, "on_activity_joined") == 0) {
+    _on_join_activity = d;
   }
   if (strcmp(type, "on_participant_join") == 0) {
     _on_participant_join = d;
@@ -145,6 +151,11 @@ void RpcManager::loginApp(char *token){
   makeRequest(msg, _on_login_app);
 }
 
+void RpcManager::loginUser(char *token){
+  char msg[120];
+  sprintf(msg, "{\"h\":{\"cid\":\"%d\",\"t\":1},\"a\":\"loginUser\",\"d\":{\"token\":\"%s\"}}", _cid, token);
+  makeRequest(msg, _on_login_user);
+}
 
 void RpcManager::createActivity(bool static_activity, char *activity){
   char msg[100];
@@ -154,6 +165,20 @@ void RpcManager::createActivity(bool static_activity, char *activity){
     sprintf(msg, "{\"h\":{\"cid\":\"%d\",\"t\":1},\"a\":\"create\"}", _cid);
   }
   makeRequest(msg, _on_create_activity);
+}
+
+
+void RpcManager::joinActivity(char *activity){
+  char msg[100];
+  sprintf(msg, "{\"h\":{\"cid\": \"%d\", \"t\": 1},\"a\": \"join\",\"d\":{\"activityId\": \"%s\"}}", _cid, activity);
+  makeRequest(msg, _on_join_activity);
+}
+
+
+void RpcManager::sendReadySignal(){
+  char msg[100];
+  sprintf(msg, "{\"h\":{\"cid\": \"%d\", \"t\": 1},\"a\": \"signal\",\"d\":{\"a\": \"ready\"}}", _cid);
+  makeRequest(msg, NULL);
 }
 
 
@@ -170,13 +195,30 @@ void RpcManager::changeWidget(int pid, char* widget, char* options){
 
 void RpcManager::sendSignal(int pid, int msg_type, char* type, char* data){
   char msg[400];
-  sprintf(msg, "{\"h\":{\"cid\":\"%d\",\"pid\":%d,\"t\":%d},\"a\":\"signal\",\"d\":{\"a\":\"%s\",\"d\":%s}}", _cid, pid, msg_type, type, data);
+  char cont[360];
+  char pid_hr[10];
+  sprintf(msg, "{\"h\":{\"cid\":\"%d\",\"", _cid);
+  if(pid > 0 && pid != NULL){
+    sprintf(pid_hr, "pid\":%d,", pid);
+    strcat(msg, pid_hr);
+  }
+  sprintf(cont, "t\":%d},\"a\":\"signal\",\"d\":{\"a\":\"%s\",\"d\":%s}}", msg_type, type, data);
+  strcat(msg, cont);
   makeRequest(msg);
 }
 
+
 void RpcManager::respondToSignal(char* cid, int pid, char* response){
   char msg[300];
-  sprintf(msg, "{\"h\":{\"cid\":\"%s\",\"pid\":%d,\"t\":2},%s}", cid, pid, response);
+  char pid_hdr[20];
+  sprintf(msg, "{\"h\":{\"cid\":\"%s\"", cid);
+  if(pid > 0 && pid != NULL){
+    sprintf(pid_hdr, "\"pid\":%d", pid);
+    strcat(msg, pid_hdr);
+  }
+  strcat(msg, ",\"t\":2},");
+  strcat(msg, response);
+  strcat(msg, "}");
   _ws.send(msg);
 }
 
@@ -198,12 +240,15 @@ void RpcManager::makeRequest(char *msg, Delegate<void, char*> *d){
 
 
 void RpcManager::connect(char* server){
-  _ws.connect(server, 80, "/ws");
+  if(server != NULL){
+    strcpy(_server, server);
+  }
+  _ws.connect(_server, 80, "/ws");
   if(_ws.connected() == true){
     (*_on_connect)(NULL);
   }else{
-    delay(1000);
-    connect(server);
+    //delay(1000);
+    //connect(server);
   }
 }
 

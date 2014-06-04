@@ -1,7 +1,7 @@
 muzzleyConnectorArduinoGalileo
 ==============================
 
-Current version: 0.1.0
+Current version: 0.2.0
 
 A library to connect [Intel® Galileo Arduino](http://arduino.cc/en/ArduinoCertified/IntelGalileo) boards to the cloud through Muzzley.
 
@@ -31,13 +31,26 @@ This lib uses the following libs:
 
 They come already included in the library package.
 
+## Known issues
+
+The Arduino IDE 1.5.3 Ethernet client library has a [performance issue](https://communities.intel.com/message/211561) when performing client.available(), taking about 5 seconds to return when the socket receives no data.
+As the websocket client lib uses the IDE socket client library, it is required to change the library timeout value, in order to free the process faster.
+
+You should:
+
+1) Locate the available() function into the file EthernetClient.cpp in .../hardware/arduino/x86/libraries/Ethernet
+
+2) change the value of timeout variable
+
+3) recompile the sketch
+
 ## API Documentation
 
 The muzzley Arduino Galileo library offers a way for arduino developers to integrate their applications with the muzzley platform, bringing the arduino interaction to a whole new level.
 
 The application is the endpoint that initiates an activity. The users connect to an activity and control the application. Per activity there's always a single application and zero or more users.
 
-Check the quick start below for a complete example.
+Check the quick start below for a complete examples.
 
 ### Including the lib in your project
 
@@ -45,8 +58,9 @@ In the top of your sketch file you'll need to include the Muzzley.h file `#incud
 and after creating a new Muzzley object `Muzzley muzzley;`
 you are ready to start exploring the available methods.
 
+A Muzzley instance can be used as an Muzzley App or as Muzzley user/participant.
 
-### Available Methods
+### App Methods
 
 #### connectApp (void)
 
@@ -113,7 +127,7 @@ This method must be inside the sketch loop. It tracks the muzzley messages and c
 void Muzzley::nextTick()
 
 
-### Application events
+### Muzzley App Events
 
 Muzzley notifies you when certain events occur, to be able to handle those notifications, it is required that you delegate the methods you want to use to handle each of them.
 
@@ -205,7 +219,6 @@ The method returns char*, receiving as parameters:
  * `namespace`: The namespace or the type of the message.
  * `message`: A jsonHashTable object containing the json message.
 
-
 ```
 // My message arrived event handler
 char * onSignalingMessage(int participant_id, char* namespace, JsonHashTable message){
@@ -262,6 +275,186 @@ void onClose(){
 muzzley.setOnCloseHandler(onClose);
 ```
 
+### User Methods
+
+#### connectUser (void)
+
+Allows you to connect to Muzzley as a user/participant.
+It is the method responsible for connecting you as a user to the Muzzley servers.
+Requires a user token which can be "guest" as default, also requires the activityId you desire to join. 
+
+void Muzzley::connectUser(char \*user_token, char \*activity_id)
+
+###### Parameters
+
+ * `user_token`: Muzzley user token.
+ * `activity_id`: The activity id you want to join.
+
+#### sendSignal (void)
+
+Sends a signal message to the Muzzley app.
+
+void Muzzley::sendSignal(char\* namespace, char\* data, SignalCallback callback)
+
+###### Parameters
+
+ * `namespace`: A namespace for your message.
+ * `data`: The data you wish to send in a json char array.
+ * `callback`: (optional) If you desire to have a callback for the message, you can declare a function to handle it and use this parameter.(Should be NULL if no callback is required)
+
+
+###### Callback usage example
+
+```
+// My own signal callback
+void myMessageCallback(bool success, JsonHashTable msg){
+  // Do something when my message is replied
+}
+
+// Sending a message to a mobile device with callback
+muzzley.sendSignal("testme", "{\"key\":\"Test me\"}", myMessageCallback);
+```
+
+The method you implement for callback requires to be of the return type void with two parameters:
+
+ * `success`: A boolean indicating wether the operation was successfull or not.
+ * `msg`: A JsonHashTable object containing the replied message.
+
+
+#### sendWidgetData (void)
+
+Sends a signal message to the Muzzley app as a Muzzley widget.
+
+void Muzzley::sendWidgetData(char\* data)
+
+###### Parameters
+
+ * `data`: The data you wish to send in a json char array. (Check Muzzley documentation for the widgets data format)
+
+#### nextTick (void)
+
+This method must be inside the sketch loop. It tracks the muzzley messages and cleans the deprecated rpc messages.
+
+void Muzzley::nextTick()
+
+
+### Muzzley User Events
+
+Muzzley notifies you when certain events occur, to be able to handle those notifications, it is required that you delegate the methods you want to use to handle each of them.
+
+#### Participant joined event
+
+This event is related with the method connectUser. It notices you that the muzzley client has successfuly joined the activity.
+
+In order to catch this event you need to delegate a method to be called when it occurs with the return type void and taking a participant as parameter:
+
+ * `participant`: The participant who just joined.
+
+```
+// My connectUser handler
+void participantJoined(Participant p){
+  Serial.println("------ Participant joined -------");
+  Serial.println(p.id);
+  Serial.println(p.profileId);
+  Serial.println(p.name);
+  Serial.println(p.photoUrl);
+  Serial.println(p.deviceId);
+}
+
+// Tell the lib that this kind of events should be handled with the function declared above
+muzzley.setParticipantJoinHandler(participantJoined);
+```
+
+#### Participant joined event
+
+When an activity is created, users can use their mobile devices to join it. Whenever a participant joins an activity a participant joined event is fired.
+
+To be able to get this event you need to declare one handler for it with a void return type and receiving a struct of the type Participant.
+
+```
+struct Participant{
+  int id;
+  char profileId[];
+  char name[];
+  char photoUrl[];
+  char deviceId[];
+};
+```
+
+ * `id`: The id of the participant in the activity.
+ * `profileId`: The participant profile id in the Muzzley cloud, unique per muzzley user.
+ * `name`: The participant name.
+ * `photoUrl`: The participant photo url.
+ * `deviceId`: The device id of the participant, unique per device.
+
+
+```
+// My participant joined handler. When my client joins the specified activity this method is called
+void participantJoined(Participant p){
+  Serial.println("------ Participant joined -------");
+  Serial.println(p.id);
+  Serial.println(p.profileId);
+  Serial.println(p.name);
+  Serial.println(p.photoUrl);
+  Serial.println(p.deviceId);
+}
+
+// Tell the lib that this kind of events should be handled with the function declared above
+muzzley.setParticipantJoinHandler(participantJoined);
+```
+
+#### Signaling message event
+
+This event is fired whenever a Muzzley app sends a message.
+In order to catch it you need to delegate a method to handle it.
+
+The method returns char*, receiving as parameters:
+
+ * `namespace`: The namespace or the type of the message.
+ * `message`: A jsonHashTable object containing the json message.
+
+```
+// My message arrived event handler
+char * onSignalingMessage(char* namespace, JsonHashTable message){
+  Serial.println(namespace);
+  
+  if(strcmp(namespace, "my_sensor_1_msgs")==0){
+    Serial.println("Received something from my messages");
+
+    // If a callback is expected by the app
+    return("\"s\":true, \"d\":{\"test\":\"Galileo is calling you back!\"}"); 
+  }
+  
+  if(strcmp(namespace, "my_sensor_2_msgs")==0){
+    Serial.println("Received something from my other messages");
+
+    // If the app is not expecting a callback
+    return NULL; 
+  }
+
+  return NULL;
+}
+
+// Delegate the onSignalingMessage method has the handler to receive message from participants
+muzzley.setSignalingMessagesHandler(onSignalingMessage);
+```
+
+If no callback is expected by the app, you should return NULL, otherwise you should  return the response message as JSON where `s` is a boolean (required if not returning NULL) specifying if the operation was or not sucessfull. `d` is the data object you want to send back to the participant and it is optional.
+
+
+#### Muzzley disconnect event
+
+Fired when the connection to the Muzzley servers is lost
+
+```
+void onClose(){
+  Serial.println("Connection to muzzley lost"); 
+}
+
+// Delegate the method to handle the muzzley disconnect event
+muzzley.setOnCloseHandler(onClose);
+```
+
 ### Extracting Json messages from the JsonHashTable
 
 JsonHashTable is a type of object containing a JSON message.
@@ -300,7 +493,7 @@ You can obtain its values the following way:
 For more information on how to extract the JSON values, check the [ArduinoJsonParser](https://github.com/bblanchon/ArduinoJsonParser) project.
 
 
-## Muzzley connector usage example
+## Muzzley connector usage example as App
 
 This example allows you to use a light switch widget in your mobile device, and use it to change the pin 13 high/low values
 
@@ -418,3 +611,5 @@ void loop() {
   muzzley.nextTick();
 }
 ```
+
+Check the examples folder for more examples.
