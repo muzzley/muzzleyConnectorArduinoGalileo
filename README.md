@@ -133,7 +133,7 @@ Muzzley notifies you when certain events occur, to be able to handle those notif
 
 #### Activity created event
 
-This event is related with the method createApp. It notices you that the muzzley activity was created and it is ready to be used.
+This event is related with the method connectApp. It notices you that the muzzley activity was created and it is ready to be used.
 
 In order to catch this event you need to delegate a method to be called when it occurs with the return type void and taking three parameters:
 
