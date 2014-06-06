@@ -260,18 +260,6 @@ void onParticipantQuit(int participant_id){
 muzzley.setParticipantQuitHandler(onParticipantQuit);
 ```
 
-#### Muzzley disconnect event
-
-Fired when the connection with the Muzzley servers is lost
-
-```
-void onClose(){
-  Serial.println("Connection to muzzley lost"); 
-}
-
-// Delegate the method to handle the muzzley disconnect event
-muzzley.setOnCloseHandler(onClose);
-```
 
 ### User Methods
 
@@ -357,6 +345,7 @@ void participantJoined(Participant p){
   Serial.println(p.name);
   Serial.println(p.photoUrl);
   Serial.println(p.deviceId);
+  Serial.println(p.context);
 }
 
 // Tell the lib that this kind of events should be handled with the function declared above
@@ -376,6 +365,7 @@ struct Participant{
   char name[];
   char photoUrl[];
   char deviceId[];
+  char context[];
 };
 ```
 
@@ -384,7 +374,7 @@ struct Participant{
  * `name`: The participant name.
  * `photoUrl`: The participant photo url.
  * `deviceId`: The device id of the participant, unique per device.
-
+ * `context`: The context of the participant when joins the activity
 
 ```
 // My participant joined handler. When my client joins the specified activity this method is called
@@ -440,18 +430,40 @@ muzzley.setSignalingMessagesHandler(onSignalingMessage);
 If no callback is expected by the app, you should return NULL, otherwise you should  return the response message as JSON where `s` is a boolean (required if not returning NULL) specifying if the operation was or not sucessfull. `d` is the data object you want to send back to the participant and it is optional.
 
 
-#### Muzzley disconnect event
+### Muzzley Connection events
 
-Fired when the connection to the Muzzley servers is lost
+#### Connection close event
+
+Fired when the connection to the Muzzley servers is lost.
 
 ```
-void onClose(){
-  Serial.println("Connection to muzzley lost"); 
+void onClose(char* message){
+  Serial.print("Connection to muzzley lost: ");
+  Serial.println(message); 
 }
 
 // Delegate the method to handle the muzzley disconnect event
 muzzley.setOnCloseHandler(onClose);
 ```
+
+#### activity terminated
+
+Fired when an activity is terminated. Muzzley handles all the reconnections except for this kind of event. This reconnection needs to be called by the developer. We can use `Muzzley.reconnect()` to recreate de activity or rejoin one.
+
+```
+void onActivityTerminated(){
+  Serial.println("Activity terminated..");
+  //Muzzley.reconnect()
+}
+
+// Delegate the method to handle the muzzley activity terminated event
+muzzley.setActivityTerminatedHandler(onActivityTerminated);
+```
+
+### Debugging
+
+If you need more output from the lib, uncomment the line `#define DEBUG` in the file `Muzzley.h`. More information will be printed to the Serial port.
+
 
 ### Extracting Json messages from the JsonHashTable
 
