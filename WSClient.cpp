@@ -94,12 +94,17 @@ byte WSClient::getNext() {
 }
 
 void WSClient::connect(const char host[], const int port, const char path[]){
+  _socket.flush();
+  _socket.stop();
+
   if(_socket.connected()){
+    Serial.println("Disconnecting");
     disconnect();
   }
   _host = host;
   _port = port;
   _path = path;
+
   if (_socket.connect(host, port)){
     if(!handshake(host, port, path)){
       disconnect();
@@ -119,7 +124,7 @@ void WSClient::disconnect(){
   _socket.write((uint8_t) 0x00);
   _socket.flush();
   _socket.stop();
-  if(_on_close_cb != NULL)(*_on_close_cb)(NULL);
+  //if(_on_close_cb != NULL)(*_on_close_cb)(NULL);
 }
 
 bool WSClient::connected(){
@@ -151,10 +156,9 @@ void WSClient::addEventListener(char* event_type, Delegate<void, char*> *callbac
 }
 
 void WSClient::getNextPacket() {
-  if(!connected()){
-    reconnect();
+  if(!_socket.connected()){
+    return;
   }
-
   if(_socket.available() > 0) {
     byte hdr = getNext();
     bool fin = hdr & 0x80;

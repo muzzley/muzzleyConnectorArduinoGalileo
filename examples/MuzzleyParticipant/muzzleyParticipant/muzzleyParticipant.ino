@@ -22,6 +22,7 @@ void participantJoined(Participant p){
   Serial.println(p.name);
   Serial.println(p.photoUrl);
   Serial.println(p.deviceId);
+  Serial.println(p.context);
 }
 
 
@@ -31,42 +32,26 @@ void handleMySignalResponse(bool success, JsonHashTable msg){
   Serial.println(msg.getString("key"));
 }
 
+void onActivityTerminated(){
+  Serial.println("Activity terminated..you need to manually reconnect");
+  //Muzzley.reconnect()..
+}
 
 /** When a signal arrives */
-char * onSignalingMessage(int participant_id, char* type, JsonHashTable message){
-  
+char * onSignalingMessage(char* type, JsonHashTable message){
+ 
   if(message.containsKey("mykey")){
     char * mykey = message.getString("mykey");
     Serial.println(mykey);
-    
-    if( strcmp(mykey,"with_cb") == 0 ){
-      Serial.println("With CB");
-      return ("\"s\":true, \"d\":{\"test\":\"Galileo says hi!\"}");
-    }
-    
-    if( strcmp(mykey,"without_cb") == 0 ){
-      Serial.println("Without CB");
-      return NULL;
-    }
-    
-    if( strcmp(mykey,"touch_to_send") == 0 ){
-      Serial.println("Sending Hi without callback");
-      muzzley.sendSignal("testme", "{\"key\":\"Test me\"}", NULL);
-      return NULL;
-    }
-    
-    if( strcmp(mykey,"touch_to_send_with_cb") == 0 ){
-      Serial.println("ending Hi with callback");
-      muzzley.sendSignal("callme", "{\"key\":\"call me\"}", handleMySignalResponse);
-    }
   }
   
   return NULL;
 }
 
 
-void onClose(){
-  Serial.println("Connection to muzzley lost"); 
+void onClose(char* msg){
+  Serial.print("Connection to muzzley lost: ");
+  Serial.println(msg);
 }
 
 void setup() {
@@ -76,13 +61,28 @@ void setup() {
   
   //Declare your event handlers
   muzzley.setParticipantJoinHandler(participantJoined);
+  muzzley.setActivityTerminatedHandler(onActivityTerminated);
   muzzley.setSignalingMessagesHandler(onSignalingMessage);
   muzzley.setOnCloseHandler(onClose);
 
-  muzzley.connectUser("guest", "06c893");
+  muzzley.connectUser("guest", "55930c");
 }
 
+unsigned long ref_time = millis();
+
+
+void sendBoardExecutionTime(){
+  char signal[100];
+  sprintf(signal, "{\"measure\":\"running_since\",\"value\":\"%d\",\"units\":\"milliseconds\"}", millis());
+  muzzley.sendSignal("galileo_1", signal, handleMySignalResponse);
+}
 
 void loop() {
   muzzley.nextTick();
+  
+  //Sends Muzzley app the time since the program started every 5 seconds aprox..
+  if(millis()>=(ref_time+10000)){
+    sendBoardExecutionTime();
+    ref_time = millis();
+  }
 }
