@@ -8,7 +8,6 @@ void RpcManager::handleResponse(char* message){
   if (strcmp(message, "h") == 0){
     return;
   }
-  Serial.println(message);
   char msg[strlen(message)];
   strcpy(msg, message);
   JsonParser<32> parser;

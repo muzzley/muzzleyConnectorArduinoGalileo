@@ -1,7 +1,7 @@
 muzzleyConnectorArduinoGalileo
 ==============================
 
-Current version: 0.2.0
+Current version: 0.2.1
 
 A library to connect [Intel® Galileo Arduino](http://arduino.cc/en/ArduinoCertified/IntelGalileo) boards to the cloud through Muzzley.
 
@@ -38,11 +38,9 @@ As the websocket client lib uses the IDE socket client library, it is required t
 
 You should:
 
-1) Locate the available() function into the file EthernetClient.cpp in .../hardware/arduino/x86/libraries/Ethernet
-
-2) change the value of timeout variable
-
-3) recompile the sketch
+1. Locate the available() function into the file EthernetClient.cpp in .../hardware/arduino/x86/libraries/Ethernet
+1. change the value of timeout variable
+1. recompile the sketch
 
 ## API Documentation
 
