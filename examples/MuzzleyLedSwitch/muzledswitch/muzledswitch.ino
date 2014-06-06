@@ -87,7 +87,7 @@ void onParticipantQuit(int pid){
   Serial.println("Participant quit");
 }
 
-void onClose(){
+void onClose(char* message){
   Serial.println("Connection to muzzley lost"); 
 }
 
