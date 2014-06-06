@@ -1,7 +1,7 @@
 #ifndef MUZZLEY_H_
 #define MUZZLEY_H_
 
-#define DEBUG
+//#define DEBUG
 
 #include "WSClient.h"
 #include "RpcManager.h"

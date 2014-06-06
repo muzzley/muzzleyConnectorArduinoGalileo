@@ -414,9 +414,9 @@ void Muzzley::onActivityJoined(char* message){
         #endif
         if(hashTable.containsKey("m")){
           char* error = hashTable.getString("m");
-          _rpcs.disconnect(error);
+          reconnect(error);
         }else{
-          _rpcs.disconnect(NULL);
+          reconnect(NULL);
         }
       }
     }else{
@@ -426,9 +426,9 @@ void Muzzley::onActivityJoined(char* message){
 
       if(hashTable.containsKey("m")){
         char* error = hashTable.getString("m");
-        _rpcs.disconnect(error);
+        reconnect(error);
       }else{
-        _rpcs.disconnect(NULL);
+        reconnect(NULL);
       }
     }
   }
@@ -467,7 +467,7 @@ void Muzzley::onCreateActivity(char* message){
       }else{
         if(hashTable.containsKey("m")){
           char* error = hashTable.getString("m");
-          _rpcs.disconnect(error);
+          reconnect(error);
         }else{
           reconnect();
         }
@@ -475,7 +475,7 @@ void Muzzley::onCreateActivity(char* message){
     }else{
       if(hashTable.containsKey("m")){
         char* error = hashTable.getString("m");
-        _rpcs.disconnect(error);
+        reconnect(error);
       }else{
         reconnect();
       }
