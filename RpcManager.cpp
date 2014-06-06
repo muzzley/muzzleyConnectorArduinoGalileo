@@ -174,7 +174,7 @@ void RpcManager::next(){
 
 void RpcManager::handshake(){
   char msg[92];
-  sprintf(msg, "{\"h\":{\"cid\":\"%d\",\"t\":1},\"a\":\"handshake\",\"d\":{\"protocolVersion\":\"1.2\",\"lib\":\"Galileo 1.0\"}}",_cid);
+  sprintf(msg, "{\"h\":{\"cid\":\"%d\",\"t\":1},\"a\":\"handshake\",\"d\":{\"protocolVersion\":\"1.2\",\"lib\":\"Galileo 2.1\"}}",_cid);
   makeRequest(msg, _on_handshake);
 }
 

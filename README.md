@@ -165,6 +165,7 @@ struct Participant{
   char name[];
   char photoUrl[];
   char deviceId[];
+  char context[];
 };
 ```
 
@@ -173,6 +174,7 @@ struct Participant{
  * `name`: The participant name.
  * `photoUrl`: The participant photo url.
  * `deviceId`: The device id of the participant, unique per device.
+ * `context`: The context of the participant when joins the activity.
 
 
 ```
@@ -184,6 +186,7 @@ void participantJoined(Participant p){
   Serial.println(p.name);
   Serial.println(p.photoUrl);
   Serial.println(p.deviceId);
+  Serial.println(p.context);
 }
 
 // Tell the lib that this kind of events should be handled with the function declared above
@@ -330,30 +333,6 @@ Muzzley notifies you when certain events occur, to be able to handle those notif
 
 #### Participant joined event
 
-This event is related with the method connectUser. It notices you that the muzzley client has successfuly joined the activity.
-
-In order to catch this event you need to delegate a method to be called when it occurs with the return type void and taking a participant as parameter:
-
- * `participant`: The participant who just joined.
-
-```
-// My connectUser handler
-void participantJoined(Participant p){
-  Serial.println("------ Participant joined -------");
-  Serial.println(p.id);
-  Serial.println(p.profileId);
-  Serial.println(p.name);
-  Serial.println(p.photoUrl);
-  Serial.println(p.deviceId);
-  Serial.println(p.context);
-}
-
-// Tell the lib that this kind of events should be handled with the function declared above
-muzzley.setParticipantJoinHandler(participantJoined);
-```
-
-#### Participant joined event
-
 When an activity is created, users can use their mobile devices to join it. Whenever a participant joins an activity a participant joined event is fired.
 
 To be able to get this event you need to declare one handler for it with a void return type and receiving a struct of the type Participant.
@@ -374,7 +353,7 @@ struct Participant{
  * `name`: The participant name.
  * `photoUrl`: The participant photo url.
  * `deviceId`: The device id of the participant, unique per device.
- * `context`: The context of the participant when joins the activity
+ * `context`: The context of the participant when joins the activity.
 
 ```
 // My participant joined handler. When my client joins the specified activity this method is called
@@ -385,6 +364,7 @@ void participantJoined(Participant p){
   Serial.println(p.name);
   Serial.println(p.photoUrl);
   Serial.println(p.deviceId);
+  Serial.println(p.context);
 }
 
 // Tell the lib that this kind of events should be handled with the function declared above
