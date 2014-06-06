@@ -4,7 +4,11 @@
 #include "JsonParser.h"
 
 void RpcManager::handleResponse(char* message){
-  if (strcmp(message, "h") == 0) return;
+  _last_heartbeat = micros();
+  if (strcmp(message, "h") == 0){
+    return;
+  }
+  Serial.println(message);
   char msg[strlen(message)];
   strcpy(msg, message);
   JsonParser<32> parser;
@@ -38,9 +42,9 @@ void RpcManager::handleResponse(char* message){
           (*_rpcs[i]._callback)(msg);
           removeRpc(i);
           return;
-        } 
+        }
       }
-      //(*_on_signaling_message)(msg);
+      (*_on_signaling_message)(msg);
     break;
 
     case '3':
@@ -52,6 +56,10 @@ void RpcManager::handleResponse(char* message){
         (*_on_participant_quit)(msg);
         sprintf(msg, "{\"h\":{\"t\":4,\"cid\": \"%s\"},\"s\":true}", cid);
         _ws.send(msg);
+      }else if(strcmp(action, "activityTerminated") == 0){
+        sprintf(msg, "{\"h\":{\"t\":4,\"cid\": \"%s\"},\"s\":true}", cid);
+        _ws.send(msg);
+        (*_on_activity_terminated)("Activity terminated");
       }
     break;
 
@@ -64,6 +72,27 @@ void RpcManager::handleResponse(char* message){
     default:
     break;
   };
+}
+
+
+bool RpcManager::isConnectionIdle(){
+  unsigned long now = micros();
+  
+  if(((now < _last_heartbeat) && (4294967295-_last_heartbeat+now) >= 60000000) || ((now > _last_heartbeat) && (now-_last_heartbeat) >= 60000000)){
+    return true;
+  }
+  return false;
+}
+
+bool RpcManager::isConnected(){
+  return _ws.connected();
+}
+
+
+void RpcManager::reconnect(){
+  disconnect("");
+  delay(5000);
+  connect(_server);
 }
 
 void RpcManager::handleCloseEvent(char* msg){
@@ -86,6 +115,8 @@ void RpcManager::addRpc(Rpc rpc){
 }
 
 RpcManager::RpcManager(){
+  _last_heartbeat = micros();
+  _need_reconnection = true;
   _rpcs_count = 0;
   _cid = 1;
   _on_message = new Delegate<void, char*>(this, &RpcManager::handleResponse);
@@ -114,6 +145,9 @@ void RpcManager::registerEvent(char* type, Delegate<void, char*> *d){
   }
   if (strcmp(type, "on_activity_joined") == 0) {
     _on_join_activity = d;
+  }
+  if (strcmp(type, "on_activity_terminated") == 0) {
+    _on_activity_terminated = d;
   }
   if (strcmp(type, "on_participant_join") == 0) {
     _on_participant_join = d;
@@ -178,7 +212,7 @@ void RpcManager::joinActivity(char *activity){
 void RpcManager::sendReadySignal(){
   char msg[100];
   sprintf(msg, "{\"h\":{\"cid\": \"%d\", \"t\": 1},\"a\": \"signal\",\"d\":{\"a\": \"ready\"}}", _cid);
-  makeRequest(msg, NULL);
+  makeRequest(msg, _on_participant_ready);
 }
 
 
@@ -189,37 +223,41 @@ void RpcManager::changeWidget(int pid, char* widget, char* options){
     strcat(msg,",\"params\":");
     strcat(msg, options);
   }
-    strcat(msg,"}}}");
+  strcat(msg,"}}}");
   makeRequest(msg, _on_widget_ready);
 }
 
 void RpcManager::sendSignal(int pid, int msg_type, char* type, char* data){
-  char msg[400];
-  char cont[360];
-  char pid_hr[10];
-  sprintf(msg, "{\"h\":{\"cid\":\"%d\",\"", _cid);
-  if(pid > 0 && pid != NULL){
-    sprintf(pid_hr, "pid\":%d,", pid);
-    strcat(msg, pid_hr);
+  if(!_need_reconnection){
+    char msg[400];
+    char cont[360];
+    char pid_hr[10];
+    sprintf(msg, "{\"h\":{\"cid\":\"%d\",\"", _cid);
+    if(pid > 0 && pid != NULL){
+      sprintf(pid_hr, "pid\":%d,", pid);
+      strcat(msg, pid_hr);
+    }
+    sprintf(cont, "t\":%d},\"a\":\"signal\",\"d\":{\"a\":\"%s\",\"d\":%s}}", msg_type, type, data);
+    strcat(msg, cont);
+    makeRequest(msg);
   }
-  sprintf(cont, "t\":%d},\"a\":\"signal\",\"d\":{\"a\":\"%s\",\"d\":%s}}", msg_type, type, data);
-  strcat(msg, cont);
-  makeRequest(msg);
 }
 
 
 void RpcManager::respondToSignal(char* cid, int pid, char* response){
-  char msg[300];
-  char pid_hdr[20];
-  sprintf(msg, "{\"h\":{\"cid\":\"%s\"", cid);
-  if(pid > 0 && pid != NULL){
-    sprintf(pid_hdr, "\"pid\":%d", pid);
-    strcat(msg, pid_hdr);
+  if(!_need_reconnection){
+    char msg[300];
+    char pid_hdr[20];
+    sprintf(msg, "{\"h\":{\"cid\":\"%s\"", cid);
+    if(pid > 0 && pid != NULL){
+      sprintf(pid_hdr, "\"pid\":%d", pid);
+      strcat(msg, pid_hdr);
+    }
+    strcat(msg, ",\"t\":2},");
+    strcat(msg, response);
+    strcat(msg, "}");
+    _ws.send(msg);
   }
-  strcat(msg, ",\"t\":2},");
-  strcat(msg, response);
-  strcat(msg, "}");
-  _ws.send(msg);
 }
 
 void RpcManager::makeRequest(char *msg, Delegate<void, char*> *d){
@@ -230,10 +268,9 @@ void RpcManager::makeRequest(char *msg, Delegate<void, char*> *d){
     Rpc rpc;
     strcpy(rpc._correlation_id, correlation_id);
     rpc._callback = d;
-    rpc._timer = millis();
+    rpc._timer = micros();
     addRpc(rpc);
   }
-
   ++_cid;
   _ws.send(msg);
 }
@@ -244,18 +281,27 @@ void RpcManager::connect(char* server){
     strcpy(_server, server);
   }
   _ws.connect(_server, 80, "/ws");
-  if(_ws.connected() == true){
+  if(_ws.connected()){
+    _need_reconnection = false;
     (*_on_connect)(NULL);
   }else{
-    //delay(1000);
-    //connect(server);
+    _need_reconnection = true;
+    (*_on_connect)("FAILED");
+  }
+}
+
+void RpcManager::disconnect(char* msg = NULL){
+  if(_ws.connected()){
+    _ws.disconnect();
+    (*_on_close)(msg);
   }
 }
 
 
 void RpcManager::removeExpiredTimeouts(){
+  unsigned long now = micros();
   for(int i = 0; i < _rpcs_count; ++i){
-    if(millis() - _rpcs[i]._timer >= 15000){
+    if(((now < _rpcs[i]._timer) && (4294967295-_rpcs[i]._timer+now) >= 15000000) || ((now > _rpcs[i]._timer) && (now-_rpcs[i]._timer) >= 15000000)){
       removeRpc(i);
     }
   }
