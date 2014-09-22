@@ -17,7 +17,7 @@ void Muzzley::nextTick(){
 }
 
 void Muzzley::removeParticipantById(int pos){
-  
+
   if(pos >= 0 && pos <= _participants_count){
     for(int i = pos; i < _participants_count; i++){
       _participants[i] = _participants[i+1];
@@ -212,7 +212,7 @@ void Muzzley::sendWidgetData(char* data){
   #ifdef DEBUG
     Serial.print("#DEBUG#  Sending Widget data to App: ");
     Serial.println(data);
-  #endif 
+  #endif
   _rpcs.sendSignal(NULL, 5, "signal", data);
 }
 
@@ -630,7 +630,7 @@ void Muzzley::onSignalingMessage(char* msg){
             _waiting_cbs--;
           }*/
           return;
-        } 
+        }
       }
     }
   } else {

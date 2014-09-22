@@ -26,6 +26,8 @@ void RpcManager::handleResponse(char* message){
       user_data = hashTable.getHashTable("d");
       user_action = user_data.getString("a");
       if (strcmp(user_action, "ready") == 0){
+        int pid = (int)header.getLong("pid");
+        respondToSignal(cid, pid, "\"s\": true");
         (*_on_participant_ready)(msg);
       }else{
         (*_on_signaling_message)(msg);
@@ -76,7 +78,7 @@ void RpcManager::handleResponse(char* message){
 
 bool RpcManager::isConnectionIdle(){
   unsigned long now = micros();
-  
+
   if(((now < _last_heartbeat) && (4294967295-_last_heartbeat+now) >= 60000000) || ((now > _last_heartbeat) && (now-_last_heartbeat) >= 60000000)){
     return true;
   }
@@ -236,7 +238,7 @@ void RpcManager::sendSignal(int pid, int msg_type, char* type, char* data){
       sprintf(pid_hr, "pid\":%d,", pid);
       strcat(msg, pid_hr);
     }
-    sprintf(cont, "t\":%d},\"a\":\"signal\",\"d\":{\"a\":\"%s\",\"d\":%s}}", msg_type, type, data);
+    sprintf(cont, "\"t\":%d},\"a\":\"signal\",\"d\":{\"a\":\"%s\",\"d\":%s}}", msg_type, type, data);
     strcat(msg, cont);
     makeRequest(msg);
   }
@@ -249,7 +251,7 @@ void RpcManager::respondToSignal(char* cid, int pid, char* response){
     char pid_hdr[20];
     sprintf(msg, "{\"h\":{\"cid\":\"%s\"", cid);
     if(pid > 0 && pid != NULL){
-      sprintf(pid_hdr, "\"pid\":%d", pid);
+      sprintf(pid_hdr, ",\"pid\":%d", pid);
       strcat(msg, pid_hdr);
     }
     strcat(msg, ",\"t\":2},");
@@ -260,7 +262,7 @@ void RpcManager::respondToSignal(char* cid, int pid, char* response){
 }
 
 void RpcManager::makeRequest(char *msg, Delegate<void, char*> *d){
-  
+
   if(d != NULL){
     char correlation_id[11];
     sprintf(correlation_id, "%d",_cid);
